@@ -13,7 +13,7 @@ const App = () => {
   useEffect(() => {
     // Initialize Socket.IO connection
     const newSocket = io(SOCKET_SERVER_URL, {
-      transports: ['websocket'], // Use WebSocket transport for real-time communication
+      transports: ['websocket','polling'], // Use WebSocket transport for real-time communication
     });
     setSocket(newSocket); // Set the socket for later use
 
