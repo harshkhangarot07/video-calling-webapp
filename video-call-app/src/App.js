@@ -8,14 +8,15 @@ const App = () => {
   const remoteVideoRef = useRef(null);
   const [peerConnection, setPeerConnection] = useState(null);
   const [socket, setSocket] = useState(null);
-  const [isCalling, setIsCalling] = useState(false); // New state for call status
+  const [isCalling, setIsCalling] = useState(false); // State for call status
 
   useEffect(() => {
     // Initialize Socket.IO connection
     const newSocket = io(SOCKET_SERVER_URL, {
-      transports: ['websocket'], // or ['polling']
+      transports: ['websocket'], // Use WebSocket transport for real-time communication
     });
-    
+    setSocket(newSocket); // Set the socket for later use
+
     // Create RTCPeerConnection
     const pc = new RTCPeerConnection();
 
@@ -36,31 +37,35 @@ const App = () => {
     });
 
     newSocket.on("offer", async (offer) => {
-      await pc.setRemoteDescription(new RTCSessionDescription(offer)).catch((error) => {
-        console.error('Error setting remote description:', error);
-      });
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      newSocket.emit("answer", answer);
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        newSocket.emit("answer", answer);
+      } catch (error) {
+        console.error('Error handling offer:', error);
+      }
     });
 
-    newSocket.on("answer", (answer) => {
-      pc.setRemoteDescription(new RTCSessionDescription(answer)).catch((error) => {
+    newSocket.on("answer", async (answer) => {
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+      } catch (error) {
         console.error('Error setting remote description from answer:', error);
-      });
+      }
     });
 
-    setPeerConnection(pc);
+    setPeerConnection(pc); // Set peer connection after creating it
 
     return () => {
       newSocket.close();
-      pc.getTracks().forEach(track => track.stop()); // Stop all tracks
+      pc.getTracks().forEach(track => track.stop()); // Stop all tracks on unmount
       pc.close();
     };
   }, []);
 
   const startCall = async () => {
-    if (!peerConnection) return;
+    if (!peerConnection) return; // Ensure peerConnection is set
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
@@ -72,7 +77,7 @@ const App = () => {
       socket.emit("offer", offer);
       setIsCalling(true); // Update call status
     } catch (error) {
-      console.error('Error accessing media devices.', error);
+      console.error('Error accessing media devices:', error);
     }
   };
 
