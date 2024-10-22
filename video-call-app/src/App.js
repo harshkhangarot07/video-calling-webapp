@@ -12,9 +12,10 @@ const App = () => {
 
   useEffect(() => {
     // Initialize Socket.IO connection
-    const newSocket = io(SOCKET_SERVER_URL);
-    setSocket(newSocket);
-
+    const newSocket = io(SOCKET_SERVER_URL, {
+      transports: ['websocket'], // or ['polling']
+    });
+    
     // Create RTCPeerConnection
     const pc = new RTCPeerConnection();
 
