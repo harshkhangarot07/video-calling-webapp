@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
-// Replace with your backend's WebSocket URL
-const SOCKET_SERVER_URL = "https://video-call-backend-xyo5.onrender.com/";
+const SOCKET_SERVER_URL = "https://video-call-backend-xyo5.onrender.com";
+
 
 const App = () => {
   const localVideoRef = useRef(null);
@@ -15,18 +15,9 @@ const App = () => {
     const newSocket = io(SOCKET_SERVER_URL);
     setSocket(newSocket);
 
-    // Create WebRTC PeerConnection
-    const pc = new RTCPeerConnection();
-    setPeerConnection(pc);
-
-    // Get user media (camera + microphone)
-    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      .then((stream) => {
-        localVideoRef.current.srcObject = stream;
-        stream.getTracks().forEach(track => pc.addTrack(track, stream));
-      });
-
     // Handle incoming remote tracks
+    const pc = new RTCPeerConnection();
+
     pc.ontrack = (event) => {
       remoteVideoRef.current.srcObject = event.streams[0];
     };
@@ -56,13 +47,29 @@ const App = () => {
       pc.setRemoteDescription(new RTCSessionDescription(answer));
     });
 
-    return () => newSocket.close();
+    setPeerConnection(pc); // Set peer connection after creating it
+
+    return () => {
+      newSocket.close();
+      pc.close(); // Close peer connection on unmount
+    };
   }, []);
 
   const startCall = async () => {
-    const offer = await peerConnection.createOffer();
-    await peerConnection.setLocalDescription(offer);
-    socket.emit("offer", offer);
+    if (!peerConnection) return; // Ensure peerConnection is set
+
+    // Get user media (camera + microphone)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localVideoRef.current.srcObject = stream;
+      stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+
+      const offer = await peerConnection.createOffer();
+      await peerConnection.setLocalDescription(offer);
+      socket.emit("offer", offer);
+    } catch (error) {
+      console.error('Error accessing media devices.', error);
+    }
   };
 
   return (
